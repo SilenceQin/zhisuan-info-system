@@ -54,11 +54,6 @@ jobs:
       - name: 构建 + 打包
         run: npm run tauri:build -- --target ${{ matrix.target }}
 
-      - name: 清理 macOS metadata 文件 (._* / .DS_Store)
-        run: |
-          find src-tauri/target -type f \( -name '._*' -o -name '.DS_Store' \) -delete 2>/dev/null || true
-          echo "已清理 macOS metadata"
-
       - name: 上传构建产物 (macOS)
         if: matrix.platform == 'macos-latest'
         uses: actions/upload-artifact@v4
@@ -101,12 +96,13 @@ jobs:
           path: dist/Windows
 
       - name: 清理 macOS metadata 干扰文件
+        shell: bash
         run: |
           # 跨平台构建时 macOS runner 会留下 ._* 隐藏文件 (AppleDouble metadata)
           # 这些会被误识别成 .exe / .dmg,清掉
           find dist -type f -name '._*' -delete 2>/dev/null || true
           find dist -type f -name '.DS_Store' -delete 2>/dev/null || true
-          echo "清理后 dist 目录:"
+          echo "清理后 dist 内容:"
           find dist -maxdepth 3 -type f | head -20
 
       - name: 创建 GitHub Release
