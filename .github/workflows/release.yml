@@ -120,7 +120,8 @@ jobs:
           find dist -type f -exec ls -la {} \;
           echo "---"
 
-          # 文件大小校验: Windows NSIS 安装包应该 >= 10M
+          # 文件大小校验: Windows NSIS 安装包应该 >= 5M
+          # (Tauri 2 默认 webviewInstallMode=downloadBootstrapper,不打包 WebView2,实际 5-10M)
           if [ -d dist/Windows ]; then
             echo "Windows .exe 文件检查:"
             for f in dist/Windows/*.exe; do
@@ -128,8 +129,8 @@ jobs:
               size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f")
               size_mb=$((size / 1024 / 1024))
               echo "  $f → ${size_mb}M"
-              if [ "$size" -lt 10485760 ]; then
-                echo "❌ Windows .exe 太小 (${size_mb}M < 10M),构建异常,中止发布"
+              if [ "$size" -lt 5242880 ]; then
+                echo "❌ Windows .exe 太小 (${size_mb}M < 5M),构建异常,中止发布"
                 exit 1
               fi
             done
@@ -165,7 +166,7 @@ jobs:
 
             **体积**:
             - macOS DMG: ~11M
-            - Windows 安装包: ~25M
+            - Windows 安装包: ~6M (NSIS + downloadBootstrapper,首装会下 ~100M WebView2)
             - 均 < 50M ✅
 
             **数据**:
