@@ -67,6 +67,21 @@ jobs:
             ls -la src-tauri/target/ 2>/dev/null
           fi
 
+      - name: macOS: zip 打包 .app (CI 上 .dmg 偶尔出不来,zip 是兜底)
+        if: matrix.platform == 'macos-latest'
+        shell: bash
+        run: |
+          if [ -d src-tauri/target/${{ matrix.target }}/release/bundle/macos ]; then
+            cd src-tauri/target/${{ matrix.target }}/release/bundle/macos
+            for app in *.app; do
+              [ -d "$app" ] || continue
+              # 用 ditto 保留 macOS 扩展属性 (Tauri app 必须)
+              ditto -c -k --sequesterRsrc --keepParent "$app" "${app%.app}.zip"
+              echo "打包: ${app%.app}.zip"
+              ls -la "${app%.app}.zip"
+            done
+          fi
+
       - name: 上传构建产物 (macOS)
         if: matrix.platform == 'macos-latest'
         uses: actions/upload-artifact@v4
@@ -74,6 +89,7 @@ jobs:
           name: 智算信息查询系统-macOS-arm64
           path: |
             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app
+            src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.zip
             src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
           if-no-files-found: error
           retention-days: 30
@@ -136,12 +152,20 @@ jobs:
           fi
 
           if [ -d dist/macOS ]; then
+            # 优先用 .dmg,没有就用 .zip (CI 上 .dmg 偶尔不出,zip 是兜底)
             for f in dist/macOS/*.dmg; do
               [ -f "$f" ] || continue
               size=$(stat -c%s "$f")
               size_mb=$((size / 1024 / 1024))
-              echo "macOS: $f → ${size_mb}M"
+              echo "macOS .dmg: $f → ${size_mb}M"
               mv "$f" "dist/macOS/zhisuan-system.dmg"
+            done
+            for f in dist/macOS/*.zip; do
+              [ -f "$f" ] || continue
+              size=$(stat -c%s "$f")
+              size_mb=$((size / 1024 / 1024))
+              echo "macOS .zip: $f → ${size_mb}M"
+              mv "$f" "dist/macOS/zhisuan-system-mac.zip"
             done
           fi
 
@@ -153,6 +177,7 @@ jobs:
         with:
           files: |
             dist/macOS/zhisuan-system.dmg
+            dist/macOS/zhisuan-system-mac.zip
             dist/Windows/zhisuan-system-setup.exe
           draft: false
           prerelease: false
@@ -161,11 +186,11 @@ jobs:
             ## 智算信息查询系统 v${{ github.ref_name }}
 
             **安装说明**:
-            - 🍎 **macOS (Apple Silicon)**: 下载 `.dmg` 双击挂载,拖入 Applications
+            - 🍎 **macOS (Apple Silicon)**: 下载 `.dmg` 双击挂载拖入 Applications,或下 `.zip` 解压后拖入
             - 🪟 **Windows (x64)**: 下载 `.exe` 双击安装
 
             **体积**:
-            - macOS DMG: ~11M
+            - macOS .app / .dmg: ~19M / ~11M
             - Windows 安装包: ~6M (NSIS + downloadBootstrapper,首装会下 ~100M WebView2)
             - 均 < 50M ✅
 
