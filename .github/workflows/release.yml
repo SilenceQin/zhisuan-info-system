@@ -108,52 +108,52 @@ jobs:
           name: 智算信息查询系统-Windows-x64
           path: dist/Windows
 
-      - name: 清理 macOS metadata 干扰文件 + 文件大小校验
+      - name: 清理 + 重命名为 ASCII + 大小校验
         shell: bash
         run: |
-          # 跨平台构建时 macOS runner 会留下 ._* 隐藏文件 (AppleDouble metadata)
-          # 这些会被误识别成 .exe / .dmg,清掉
-          find dist -type f -name '._*' -delete 2>/dev/null || true
-          find dist -type f -name '.DS_Store' -delete 2>/dev/null || true
+          set +e
+          # 1. 删 macOS AppleDouble 影子
+          find dist -type f -name '._*' -delete 2>/dev/null
+          find dist -type f -name '.DS_Store' -delete 2>/dev/null
 
           echo "--- 清理后 dist 内容 ---"
           find dist -type f -exec ls -la {} \;
           echo "---"
 
-          # 文件大小校验: Windows NSIS 安装包应该 >= 5M
-          # (Tauri 2 默认 webviewInstallMode=downloadBootstrapper,不打包 WebView2,实际 5-10M)
+          # 2. 文件大小校验 + 重命名成纯 ASCII
           if [ -d dist/Windows ]; then
-            echo "Windows .exe 文件检查:"
             for f in dist/Windows/*.exe; do
               [ -f "$f" ] || continue
-              size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f")
+              size=$(stat -c%s "$f")
               size_mb=$((size / 1024 / 1024))
-              echo "  $f → ${size_mb}M"
+              echo "Windows: $f → ${size_mb}M"
               if [ "$size" -lt 5242880 ]; then
                 echo "❌ Windows .exe 太小 (${size_mb}M < 5M),构建异常,中止发布"
                 exit 1
               fi
+              mv "$f" "dist/Windows/zhisuan-system-setup.exe"
             done
           fi
 
           if [ -d dist/macOS ]; then
-            echo "macOS .dmg 文件检查:"
             for f in dist/macOS/*.dmg; do
               [ -f "$f" ] || continue
-              size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f")
+              size=$(stat -c%s "$f")
               size_mb=$((size / 1024 / 1024))
-              echo "  $f → ${size_mb}M"
+              echo "macOS: $f → ${size_mb}M"
+              mv "$f" "dist/macOS/zhisuan-system.dmg"
             done
           fi
+
+          echo "--- 重命名后 ---"
+          find dist -type f -exec ls -la {} \;
 
       - name: 创建 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/macOS/*.dmg
-            dist/Windows/*[!.]*.exe
-            dist/Windows/[!._]*.exe
-            dist/Windows/智算信息查询系统-数据中心事业部*.exe
+            dist/macOS/zhisuan-system.dmg
+            dist/Windows/zhisuan-system-setup.exe
           draft: false
           prerelease: false
           generate_release_notes: true
