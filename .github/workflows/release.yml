@@ -177,13 +177,11 @@ jobs:
           echo "--- 最终文件 ---"
           find dist -type f -exec ls -la {} \;
 
-      - name: 创建 GitHub Release
+      - name: 创建 GitHub Release (暂时只发 Windows,macOS 走本地交付)
         uses: softprops/action-gh-release@v2
         with:
-          fail_on_unmatched_files: false
+          fail_on_unmatched_files: true
           files: |
-            dist/macOS/zhisuan-system.dmg
-            dist/macOS/zhisuan-system-mac.zip
             dist/Windows/zhisuan-system-setup.exe
           draft: false
           prerelease: false
@@ -192,13 +190,12 @@ jobs:
             ## 智算信息查询系统 v${{ github.ref_name }}
 
             **安装说明**:
-            - 🍎 **macOS (Apple Silicon)**: 下载 `.dmg` 双击挂载拖入 Applications,或下 `.zip` 解压后拖入
-            - 🪟 **Windows (x64)**: 下载 `.exe` 双击安装
+            - 🪟 **Windows (x64)**: 下载 `zhisuan-system-setup.exe` 双击安装
+            - 🍎 **macOS (Apple Silicon)**: 见 `/Users/silence/Desktop/MiniMAX/交付包-v2/`(本机构建)
 
             **体积**:
-            - macOS .app / .dmg: ~19M / ~11M
             - Windows 安装包: ~6M (NSIS + downloadBootstrapper,首装会下 ~100M WebView2)
-            - 均 < 50M ✅
+            - < 50M ✅
 
             **数据**:
             - 内置"算力数据.xlsx"首次启动自动导入
