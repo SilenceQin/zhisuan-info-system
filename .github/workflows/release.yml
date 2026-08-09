@@ -136,7 +136,7 @@ jobs:
           find dist -type f -exec ls -la {} \;
           echo "---"
 
-          # 2. 文件大小校验 + 重命名成纯 ASCII
+          # 2. Windows: 校验 + 重命名
           if [ -d dist/Windows ]; then
             for f in dist/Windows/*.exe; do
               [ -f "$f" ] || continue
@@ -151,21 +151,38 @@ jobs:
             done
           fi
 
+          # 3. macOS: 把所有文件 (.app 目录 / .dmg / .zip) 强制重命名成 ASCII
           if [ -d dist/macOS ]; then
-            # 优先用 .dmg,没有就用 .zip (CI 上 .dmg 偶尔不出,zip 是兜底)
+            # 3a. .dmg (CI 上经常出不来,出不来就走 zip 兜底)
+            dmg_count=0
             for f in dist/macOS/*.dmg; do
               [ -f "$f" ] || continue
               size=$(stat -c%s "$f")
               size_mb=$((size / 1024 / 1024))
               echo "macOS .dmg: $f → ${size_mb}M"
               mv "$f" "dist/macOS/zhisuan-system.dmg"
+              dmg_count=$((dmg_count + 1))
             done
+            [ "$dmg_count" -eq 0 ] && echo "⚠️ macOS .dmg 缺失(可能 CI runner 问题),将只用 .zip"
+
+            # 3b. .zip 兜底(无论 .dmg 是否有)
             for f in dist/macOS/*.zip; do
               [ -f "$f" ] || continue
               size=$(stat -c%s "$f")
               size_mb=$((size / 1024 / 1024))
               echo "macOS .zip: $f → ${size_mb}M"
               mv "$f" "dist/macOS/zhisuan-system-mac.zip"
+            done
+
+            # 3c. .app (如果 .zip 没出来,直接 zip 打包)
+            for f in dist/macOS/*.app; do
+              [ -d "$f" ] || continue
+              if [ ! -f dist/macOS/zhisuan-system-mac.zip ]; then
+                echo "macOS .app: $f → 直接 zip 打包(无 .dmg/.zip 时兜底)"
+                cd dist/macOS
+                ditto -c -k --sequesterRsrc --keepParent "$f" "zhisuan-system-mac.zip"
+                cd -
+              fi
             done
           fi
 
@@ -175,6 +192,7 @@ jobs:
       - name: 创建 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          fail_on_unmatched_files: false
           files: |
             dist/macOS/zhisuan-system.dmg
             dist/macOS/zhisuan-system-mac.zip
