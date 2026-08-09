@@ -88,7 +88,6 @@ jobs:
         with:
           name: 智算信息查询系统-macOS-arm64
           path: |
-            src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app
             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.zip
             src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
           if-no-files-found: error
