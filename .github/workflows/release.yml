@@ -67,7 +67,7 @@ jobs:
             ls -la src-tauri/target/ 2>/dev/null
           fi
 
-      - name: macOS zip 打包 .app (CI 上 .dmg 偶尔出不来,zip 是兜底)
+      - name: macOS zip 打包 .app (用固定 ASCII 名,避免后面 cleanup 步骤乱码)
         if: matrix.platform == 'macos-latest'
         shell: bash
         run: |
@@ -75,10 +75,12 @@ jobs:
             cd src-tauri/target/${{ matrix.target }}/release/bundle/macos
             for app in *.app; do
               [ -d "$app" ] || continue
-              # 用 ditto 保留 macOS 扩展属性 (Tauri app 必须)
-              ditto -c -k --sequesterRsrc --keepParent "$app" "${app%.app}.zip"
-              echo "打包: ${app%.app}.zip"
-              ls -la "${app%.app}.zip"
+              echo "原 .app: $app"
+              ls -la "$app" | head -3
+              # 用 ditto 保留 macOS 扩展属性 (Tauri app 必须),文件名直接用 ASCII
+              ditto -c -k --sequesterRsrc --keepParent "$app" "zhisuan-system-mac.zip"
+              echo "打包后:"
+              ls -la "zhisuan-system-mac.zip"
             done
           fi
 
@@ -123,7 +125,7 @@ jobs:
           name: 智算信息查询系统-Windows-x64
           path: dist/Windows
 
-      - name: 清理 + 重命名为 ASCII + 大小校验
+      - name: 清理 + 大小校验 (.zip 已在 macOS 步骤用 ASCII 名,无需重命名)
         shell: bash
         run: |
           set +e
@@ -150,42 +152,29 @@ jobs:
             done
           fi
 
-          # 3. macOS: 把所有文件 (.app 目录 / .dmg / .zip) 强制重命名成 ASCII
+          # 3. macOS: .dmg 重命名(如果存在);.zip 已经是 ASCII 名
           if [ -d dist/macOS ]; then
-            # 3a. .dmg (CI 上经常出不来,出不来就走 zip 兜底)
-            dmg_count=0
             for f in dist/macOS/*.dmg; do
               [ -f "$f" ] || continue
               size=$(stat -c%s "$f")
               size_mb=$((size / 1024 / 1024))
               echo "macOS .dmg: $f → ${size_mb}M"
               mv "$f" "dist/macOS/zhisuan-system.dmg"
-              dmg_count=$((dmg_count + 1))
             done
-            [ "$dmg_count" -eq 0 ] && echo "⚠️ macOS .dmg 缺失(可能 CI runner 问题),将只用 .zip"
-
-            # 3b. .zip 兜底(无论 .dmg 是否有)
-            for f in dist/macOS/*.zip; do
-              [ -f "$f" ] || continue
-              size=$(stat -c%s "$f")
-              size_mb=$((size / 1024 / 1024))
-              echo "macOS .zip: $f → ${size_mb}M"
-              mv "$f" "dist/macOS/zhisuan-system-mac.zip"
-            done
-
-            # 3c. .app (如果 .zip 没出来,直接 zip 打包)
-            for f in dist/macOS/*.app; do
-              [ -d "$f" ] || continue
-              if [ ! -f dist/macOS/zhisuan-system-mac.zip ]; then
-                echo "macOS .app: $f → 直接 zip 打包(无 .dmg/.zip 时兜底)"
+            # 兜底:如果 macOS 步骤的 ditto 没出 .zip,这里再补一次
+            if [ ! -f dist/macOS/zhisuan-system-mac.zip ]; then
+              for f in dist/macOS/*.app; do
+                [ -d "$f" ] || continue
+                echo "兜底 zip: $f"
                 cd dist/macOS
                 ditto -c -k --sequesterRsrc --keepParent "$f" "zhisuan-system-mac.zip"
                 cd -
-              fi
-            done
+                break
+              done
+            fi
           fi
 
-          echo "--- 重命名后 ---"
+          echo "--- 最终文件 ---"
           find dist -type f -exec ls -la {} \;
 
       - name: 创建 GitHub Release
