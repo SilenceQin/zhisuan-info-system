@@ -67,7 +67,7 @@ jobs:
             ls -la src-tauri/target/ 2>/dev/null
           fi
 
-      - name: macOS: zip 打包 .app (CI 上 .dmg 偶尔出不来,zip 是兜底)
+      - name: macOS zip 打包 .app (CI 上 .dmg 偶尔出不来,zip 是兜底)
         if: matrix.platform == 'macos-latest'
         shell: bash
         run: |
