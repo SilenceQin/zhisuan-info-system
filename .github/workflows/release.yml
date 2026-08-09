@@ -52,7 +52,7 @@ jobs:
         run: npm ci || npm install
 
       - name: 构建 + 打包
-        run: npm run tauri:build -- --target ${{ matrix.target }} --verbose 2>&1 | tail -200
+        run: npm run tauri:build -- --target ${{ matrix.target }} --verbose
 
       - name: 打印 bundle 输出 (debug)
         if: always()
